@@ -1,0 +1,133 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef enum { READY, WAIT, RUNNING, TERMINATED } ProcessState;
+
+typedef struct Process {
+	int pid;
+	ProcessState state;
+	struct Process* next;
+	struct Process* prev;
+
+}Process;
+
+typedef struct Queue{
+	Process* head;
+	Process* tail;
+}Queue;
+
+Queue* initQueue(){
+	Queue* q = (Queue*)malloc(sizeof(Queue));
+	q->head = q->tail = NULL;
+	return q;
+}
+
+Process* createProcess(int pid, ProcessState state){
+	Process* newProcess = (Process*)malloc(sizeof(Process));
+	newProcess->pid = pid;
+	newProcess->state=state;
+	newProcess->next=newProcess->prev=NULL;
+	return newProcess;
+}
+
+void addProcess(Queue* queue, Process* process){
+	process->next=NULL;
+	if(queue->tail){
+	process->prev=queue->tail;
+	queue->tail->next = process;
+	queue->tail =process;
+
+	}else{
+	process->prev = NULL;
+	queue->head = queue->tail = process;
+	}
+
+Process* removeProcess(Queue* queue){
+	if(!queue-> head) return NULL;
+	Process* removedProcess = queue->head;
+	queue->head=queue->head->next;
+	if(queue->head)queue->head->prev=NULL;
+	else queue->tail = NULL;
+	return removedProcess;
+	}
+}
+
+void moveProcess(Queue* fromQueue, Queue* toQueue, Process* process){
+	if(process->prev)process->prev->next=process->next;
+	if(process->next)process->next->prev=process->prev;
+	if(process == fromQueue-> head)fromQueue->head=process->next;
+	if(process ==fromQueue->tail)fromQueue->tail=process->prev;
+
+	addProcess(toQueue, process);
+}
+
+void executeProcess(Queue* readyQueue, Queue* ioWaitQueue){
+	Process* currentProcess =removeProcess(readyQueue);
+	if(currentProcess){
+	currentProcess->state = RUNNING;
+	printf("Executing process %d\n", currentProcess->pid);
+
+	}
+}
+
+void requestIO(Queue* readyQueue, Queue* ioWaitQueue){
+	Process* process=removeProcess(readyQueue);
+	if(process){
+	process->state = WAIT;
+	addProcess(ioWaitQueue, process);
+	printf("Process %d moved to I/O wait queue \n", process ->pid);
+
+	}
+}
+
+void ioComplete(Queue* ioWaitQueue, Queue* readyQueue){
+	Process* process = removeProcess(ioWaitQueue);
+	if(process){
+	process->state = READY;
+	addProcess("Process %d returned to ready queue from I/O wait \n", process->pid);
+	}
+}
+
+void interruptProcess(Queue* readyQueue, Process* process){
+	if(process->state == RUNNING){
+	process->state = READY;
+	addProcess(readyQueue, process);
+	printf("Process %d interrupted and returned to ready queue\n", process->pid);
+	}
+}
+
+void terminateProcess(Process* process){
+	process->state = TERMINATED;
+	printf("Process %d terminated \n", process ->pid);
+
+}
+
+void simulateBackupProcessFlow(Queue* readyQueue, Queue* ioWaitQueue){
+	Process* backupProcess = createProcess(1, READY);
+	addProcess(readyQueue, backupProcess);
+	//Step 1:
+	printf("Process %d (Backup) created and added to ready queue\n", backupProcess->pid);
+	//Step 2:
+	executeProcess(readyQueue, ioWaitQueue);
+	//Step 3:
+	requestIO(readyQueue, ioWaitQueue);
+	//Step 4:
+	ioComplete(ioWaitQueue, readyQueue);
+
+	//Step 5:
+	executeProcess(readyQueue, ioWaitQueue);
+	interruptProcess(readyQueue, backupProcess);
+
+	//Step 6:
+	Process* terminatedProcess =removeProcess(readyQueue);
+	if(terminatedProcess) terminateProcess(terminatedProcess);
+}
+
+
+int main(){
+	Queue* readyQueue= initQueue();
+	Queue* ioWaitQueue = initQueue();
+
+	simulateBackupProcessFlow(readyQueue, ioWaitQueue);
+}
