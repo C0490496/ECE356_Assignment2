@@ -1,4 +1,5 @@
-*****ECE 356 ASSIGNMENT 2*****
+ECE 356 ASSIGNMENT 2
+
 Q1) In this question we were asked to implement a doubly link list process and to complete the goals presented in the question to simulate a simplified verision of how the 
     linux kernel maintain and manages processes using a doubly linked list. 
     To run the program follow the following steps:
